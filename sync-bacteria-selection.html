@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔄 Synchronisation Sélection Bactéries</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .bacteria-item {
+            background: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .selected { border-left-color: #28a745; background: #f0fff4; }
+        .not-selected { border-left-color: #dc3545; background: #fff5f5; }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover { opacity: 0.8; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔄 Synchronisation Sélection Bactéries</h1>
+        <p>Forcer la synchronisation entre votre sélection visuelle et la base de données</p>
+        <button onclick="analyserSelection()">🔍 Analyser Sélection Actuelle</button>
+        <button onclick="forcerSynchronisation()">🚀 Forcer Synchronisation</button>
+    </div>
+
+    <div id="results">
+        <div class="section">
+            <h2>📋 Instructions</h2>
+            <div class="bacteria-item">
+                <strong>1. Analyser</strong> votre sélection locale (boutons que vous avez cliqué)<br>
+                <strong>2. Synchroniser</strong> cette sélection avec votre formulaire dans Supabase<br>
+                <strong>3. Vérifier</strong> que vos bactéries apparaissent ensuite
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ekmkjbqafhjkuqhjdslf.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrbWtqYnFhZmhqa3VxaGpkc2xmIiwicm9sZSI6InB1YmxpYyIsImlhdCI6MTczMzg2OTY2MSwiZXhwIjoyMDQ5NDQ1NjYxfQ.xzQQHaM2KPV-21z1MuJOkRm5qn4FQvFjy--R_BwD3zs';
+        
+        // Mapping entre IDs système et noms des bactéries
+        const bacteriaMapping = {
+            'entero': { name: 'Entérobactéries', delay: 24 },
+            'ecoli': { name: 'Escherichia coli', delay: 24 },
+            'coliformes': { name: 'Coliformes totaux', delay: 48 },
+            'staphylocoques': { name: 'Staphylocoques', delay: 48 },
+            'listeria': { name: 'Listeria', delay: 48 },
+            'levures3j': { name: 'Levures/Moisissures (3j)', delay: 72 },
+            'flores': { name: 'Flore totales', delay: 72 },
+            'leuconostoc': { name: 'Leuconostoc', delay: 96 },
+            'levures5j': { name: 'Levures/Moisissures (5j)', delay: 120 }
+        };
+
+        function analyserSelection() {
+            try {
+                console.log('🔍 Analyse de la sélection locale...');
+                
+                // Lire la sélection dans localStorage
+                const storedSelection = localStorage.getItem('lotfiv2-bacteria-selection');
+                let selectedBacteriaIds = [];
+                
+                if (storedSelection) {
+                    selectedBacteriaIds = JSON.parse(storedSelection);
+                } else {
+                    selectedBacteriaIds = ['entero', 'levures3j']; // Valeurs par défaut
+                }
+
+                let html = `
+                    <div class="section">
+                        <h2>🔍 Analyse de votre Sélection Locale</h2>
+                        <div class="bacteria-item">
+                            <strong>Clé localStorage:</strong> 'lotfiv2-bacteria-selection'<br>
+                            <strong>Valeur brute:</strong> ${storedSelection || 'null (utilise les défauts)'}<br>
+                            <strong>Bactéries sélectionnées:</strong> ${selectedBacteriaIds.length}
+                        </div>
+                        
+                        <h3>📊 Détail des Bactéries Sélectionnées</h3>
+                `;
+
+                selectedBacteriaIds.forEach(id => {
+                    const bacteria = bacteriaMapping[id];
+                    if (bacteria) {
+                        html += `
+                            <div class="bacteria-item selected">
+                                ✅ <strong>${bacteria.name}</strong> (${bacteria.delay}h) - ID: ${id}
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="bacteria-item error">
+                                ❌ <strong>ID inconnu: ${id}</strong>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += `
+                        <h3>📋 Toutes les Bactéries Disponibles</h3>
+                `;
+
+                Object.keys(bacteriaMapping).forEach(id => {
+                    const bacteria = bacteriaMapping[id];
+                    const isSelected = selectedBacteriaIds.includes(id);
+                    html += `
+                        <div class="bacteria-item ${isSelected ? 'selected' : 'not-selected'}">
+                            ${isSelected ? '✅' : '❌'} <strong>${bacteria.name}</strong> (${bacteria.delay}h) - ID: ${id}
+                        </div>
+                    `;
+                });
+
+                html += `
+                    </div>
+                    <div class="section">
+                        <h2>🎯 Prochaine Étape</h2>
+                        <div class="warning">
+                            <strong>Votre formulaire ID:</strong> form-2025-06-09-3dr8om5<br><br>
+                            Cliquez sur "🚀 Forcer Synchronisation" pour créer ces bactéries dans Supabase !
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('results').innerHTML = html;
+
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                document.getElementById('results').innerHTML = `
+                    <div class="section">
+                        <div class="error">
+                            <strong>Erreur lors de l'analyse:</strong> ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function forcerSynchronisation() {
+            try {
+                document.getElementById('results').innerHTML = `
+                    <div class="section">
+                        <h2>🚀 Synchronisation en cours...</h2>
+                        <div class="bacteria-item">
+                            ⏳ Lecture de votre sélection locale...<br>
+                            ⏳ Suppression des anciennes bactéries...<br>
+                            ⏳ Création des nouvelles bactéries...<br>
+                            ⏳ Mise à jour du statut du formulaire...
+                        </div>
+                    </div>
+                `;
+
+                // 1. Lire la sélection locale
+                const storedSelection = localStorage.getItem('lotfiv2-bacteria-selection');
+                let selectedBacteriaIds = storedSelection ? JSON.parse(storedSelection) : ['entero', 'levures3j'];
+                
+                console.log('📋 Bactéries sélectionnées:', selectedBacteriaIds);
+
+                const targetFormId = 'form-2025-06-09-3dr8om5';
+                let results = [];
+
+                // 2. Supprimer les anciennes bactéries
+                try {
+                    const deleteResponse = await fetch(
+                        `${SUPABASE_URL}/rest/v1/form_bacteria_selections?form_id=eq.${targetFormId}`,
+                        {
+                            method: 'DELETE',
+                            headers: {
+                                'apikey': SUPABASE_KEY,
+                                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            }
+                        }
+                    );
+                    results.push(`✅ Suppression des anciennes bactéries: ${deleteResponse.ok ? 'OK' : 'Erreur ' + deleteResponse.status}`);
+                } catch (error) {
+                    results.push(`⚠️ Suppression des anciennes bactéries: ${error.message}`);
+                }
+
+                // 3. Créer les nouvelles bactéries
+                const bacteriaToCreate = [];
+                selectedBacteriaIds.forEach(id => {
+                    const bacteria = bacteriaMapping[id];
+                    if (bacteria) {
+                        const readingDate = new Date();
+                        readingDate.setHours(readingDate.getHours() + bacteria.delay);
+                        
+                        const readingDay = Math.ceil(bacteria.delay / 24);
+                        
+                        bacteriaToCreate.push({
+                            form_id: targetFormId,
+                            bacteria_name: bacteria.name,
+                            bacteria_delay: bacteria.delay,
+                            reading_day: readingDay,
+                            status: 'pending',
+                            reading_date: readingDate.toISOString().split('T')[0],
+                            created_at: new Date().toISOString(),
+                            modified_at: new Date().toISOString()
+                        });
+                    }
+                });
+
+                if (bacteriaToCreate.length > 0) {
+                    try {
+                        const insertResponse = await fetch(
+                            `${SUPABASE_URL}/rest/v1/form_bacteria_selections`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'apikey': SUPABASE_KEY,
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                                    'Content-Type': 'application/json',
+                                    'Prefer': 'return=minimal'
+                                },
+                                body: JSON.stringify(bacteriaToCreate)
+                            }
+                        );
+                        results.push(`✅ Création de ${bacteriaToCreate.length} bactéries: ${insertResponse.ok ? 'OK' : 'Erreur ' + insertResponse.status}`);
+                    } catch (error) {
+                        results.push(`❌ Création des bactéries: ${error.message}`);
+                    }
+                }
+
+                // 4. Mettre à jour le statut du formulaire
+                try {
+                    const updateResponse = await fetch(
+                        `${SUPABASE_URL}/rest/v1/samples?form_id=eq.${targetFormId}`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                'apikey': SUPABASE_KEY,
+                                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                                'Content-Type': 'application/json',
+                                'Prefer': 'return=minimal'
+                            },
+                            body: JSON.stringify({
+                                status: 'waiting_reading',
+                                modified_at: new Date().toISOString()
+                            })
+                        }
+                    );
+                    results.push(`✅ Mise à jour du statut: ${updateResponse.ok ? 'OK' : 'Erreur ' + updateResponse.status}`);
+                } catch (error) {
+                    results.push(`⚠️ Mise à jour du statut: ${error.message}`);
+                }
+
+                // Afficher les résultats
+                let html = `
+                    <div class="section">
+                        <h2>🎉 Synchronisation Terminée !</h2>
+                        <div class="success">
+                            <strong>Bactéries synchronisées avec succès !</strong><br><br>
+                            ${results.join('<br>')}
+                        </div>
+                        
+                        <h3>📋 Bactéries Créées</h3>
+                `;
+
+                bacteriaToCreate.forEach(bacteria => {
+                    html += `
+                        <div class="bacteria-item selected">
+                            🦠 <strong>${bacteria.bacteria_name}</strong><br>
+                            ⏰ Délai: ${bacteria.bacteria_delay}h<br>
+                            📅 Date de lecture: ${bacteria.reading_date}<br>
+                            🏷️ Statut: ${bacteria.status}
+                        </div>
+                    `;
+                });
+
+                html += `
+                        <div class="warning">
+                            <strong>🔄 Prochaines étapes :</strong><br>
+                            1. Rechargez votre page "Lectures en Attente"<br>
+                            2. Vos bactéries devraient maintenant apparaître !<br>
+                            3. Si ça ne marche pas, ouvrez la console (F12) pour voir les erreurs
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('results').innerHTML = html;
+
+            } catch (error) {
+                console.error('❌ Erreur globale:', error);
+                document.getElementById('results').innerHTML = `
+                    <div class="section">
+                        <div class="error">
+                            <strong>Erreur lors de la synchronisation:</strong> ${error.message}<br><br>
+                            <strong>Solutions alternatives :</strong><br>
+                            1. Utilisez l'interface Supabase Dashboard directement<br>
+                            2. Vérifiez votre connexion Internet<br>
+                            3. Contactez le support technique
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Analyser automatiquement au chargement
+        window.onload = function() {
+            setTimeout(analyserSelection, 500);
+        };
+    </script>
+</body>
+</html> 

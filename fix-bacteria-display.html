@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Correction Automatique - Affichage Bactéries</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .button.danger {
+            background: #dc2626;
+        }
+        .button.danger:hover {
+            background: #b91c1c;
+        }
+        .button.success {
+            background: #059669;
+        }
+        .button.success:hover {
+            background: #047857;
+        }
+        .success { color: #059669; font-weight: bold; }
+        .error { color: #dc2626; font-weight: bold; }
+        .warning { color: #d97706; font-weight: bold; }
+        .info { color: #0891b2; font-weight: bold; }
+        .result {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .step {
+            background: #e0f2fe;
+            border-left: 4px solid #0891b2;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background-color: #e5e7eb;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #3b82f6;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Correction Automatique - Affichage Bactéries</h1>
+    <p>Ce script corrige automatiquement les problèmes d'affichage des bactéries dans "Analyse en cours" et "Lectures en attente"</p>
+
+    <div class="container">
+        <h2>🎯 Actions de Correction</h2>
+        <button class="button" onclick="diagnostiquerProbleme()">1. 🔍 Diagnostiquer le problème</button>
+        <button class="button success" onclick="corrigerAutomatiquement()">2. 🔧 Corriger automatiquement</button>
+        <button class="button" onclick="verifierCorrection()">3. ✅ Vérifier la correction</button>
+        <button class="button danger" onclick="reinitialiserTout()">4. 🔄 Réinitialiser tout</button>
+    </div>
+
+    <div class="container">
+        <h3>📊 Progression</h3>
+        <div class="progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div id="status">Prêt à diagnostiquer...</div>
+    </div>
+
+    <div id="resultats" class="container">
+        <h3>📋 Résultats</h3>
+        <div id="output">Cliquez sur "Diagnostiquer le problème" pour commencer...</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Configuration Supabase
+        const supabaseUrl = 'https://bkdcbrnfzgnafjwnryme.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrZGNicm5memduYWZqd25yeW1lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU2ODA1MTAsImV4cCI6MjA2MTI1NjUxMH0.cdzP9f_Bg1TlrBs-v1DsOb5Iv-tfK0KURPwZn1hwYMU';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        let diagnosticResults = null;
+
+        function log(message, type = 'info') {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            output.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+        }
+
+        function updateProgress(percent, status) {
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('status').textContent = status;
+        }
+
+        async function diagnostiquerProbleme() {
+            clearOutput();
+            updateProgress(0, 'Diagnostic en cours...');
+            log('🔍 DIAGNOSTIC COMPLET DU PROBLÈME', 'info');
+            log('=====================================', 'info');
+
+            try {
+                // Étape 1: Vérifier les échantillons
+                updateProgress(20, 'Vérification des échantillons...');
+                log('1️⃣ Vérification des échantillons...', 'info');
+                
+                const { data: samples, error: samplesError } = await supabase
+                    .from('samples')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (samplesError) throw samplesError;
+
+                const waitingSamples = samples.filter(s => s.status === 'waiting_reading');
+                const draftSamples = samples.filter(s => s.status === 'draft');
+                
+                log(`📋 Total échantillons: ${samples.length}`, 'info');
+                log(`📋 Échantillons 'waiting_reading': ${waitingSamples.length}`, 'info');
+                log(`📋 Échantillons 'draft': ${draftSamples.length}`, 'info');
+
+                // Étape 2: Vérifier les bactéries
+                updateProgress(40, 'Vérification des bactéries...');
+                log('2️⃣ Vérification des bactéries...', 'info');
+                
+                const { data: bacteria, error: bacteriaError } = await supabase
+                    .from('form_bacteria_selections')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (bacteriaError) throw bacteriaError;
+
+                const pendingBacteria = bacteria.filter(b => b.status === 'pending');
+                const inProgressBacteria = bacteria.filter(b => b.status === 'in_progress');
+                
+                log(`🦠 Total bactéries: ${bacteria.length}`, 'info');
+                log(`🦠 Bactéries 'pending': ${pendingBacteria.length}`, 'info');
+                log(`🦠 Bactéries 'in_progress': ${inProgressBacteria.length}`, 'info');
+
+                // Étape 3: Vérifier localStorage
+                updateProgress(60, 'Vérification du localStorage...');
+                log('3️⃣ Vérification du localStorage...', 'info');
+                
+                const localSelection = localStorage.getItem('lotfiv2-bacteria-selection');
+                let localBacteria = [];
+                if (localSelection) {
+                    try {
+                        localBacteria = JSON.parse(localSelection);
+                        log(`💾 localStorage: ${localBacteria.length} bactéries sélectionnées`, 'success');
+                        log(`💾 Bactéries: ${localBacteria.join(', ')}`, 'info');
+                    } catch (e) {
+                        log(`💾 localStorage: Erreur de parsing - ${e.message}`, 'error');
+                    }
+                } else {
+                    log(`💾 localStorage: Aucune sélection trouvée`, 'warning');
+                }
+
+                // Étape 4: Analyser les correspondances
+                updateProgress(80, 'Analyse des correspondances...');
+                log('4️⃣ Analyse des correspondances...', 'info');
+                
+                const sampleFormIds = [...new Set(samples.map(s => s.form_id).filter(Boolean))];
+                const bacteriaFormIds = [...new Set(bacteria.map(b => b.form_id).filter(Boolean))];
+                
+                log(`📝 Form IDs échantillons: ${sampleFormIds.length}`, 'info');
+                log(`🧬 Form IDs bactéries: ${bacteriaFormIds.length}`, 'info');
+
+                const matches = sampleFormIds.filter(id => bacteriaFormIds.includes(id));
+                const orphanSamples = sampleFormIds.filter(id => !bacteriaFormIds.includes(id));
+                const orphanBacteria = bacteriaFormIds.filter(id => !sampleFormIds.includes(id));
+
+                // Étape 5: Diagnostic final
+                updateProgress(100, 'Diagnostic terminé');
+                log('5️⃣ DIAGNOSTIC FINAL', 'info');
+                log('==================', 'info');
+
+                diagnosticResults = {
+                    samples: samples,
+                    bacteria: bacteria,
+                    waitingSamples: waitingSamples,
+                    pendingBacteria: pendingBacteria,
+                    localBacteria: localBacteria,
+                    matches: matches,
+                    orphanSamples: orphanSamples,
+                    orphanBacteria: orphanBacteria
+                };
+
+                // Identifier les problèmes
+                const problems = [];
+                
+                if (waitingSamples.length > 0 && pendingBacteria.length === 0) {
+                    problems.push('❌ PROBLÈME 1: Échantillons en attente mais aucune bactérie pending');
+                }
+                
+                if (localBacteria.length > 0 && pendingBacteria.length === 0) {
+                    problems.push('❌ PROBLÈME 2: Bactéries sélectionnées localement mais pas sauvegardées');
+                }
+                
+                if (orphanSamples.length > 0) {
+                    problems.push(`❌ PROBLÈME 3: ${orphanSamples.length} échantillons sans bactéries associées`);
+                }
+                
+                if (orphanBacteria.length > 0) {
+                    problems.push(`❌ PROBLÈME 4: ${orphanBacteria.length} bactéries orphelines`);
+                }
+
+                if (problems.length === 0) {
+                    log('✅ AUCUN PROBLÈME DÉTECTÉ !', 'success');
+                    log('Les données semblent cohérentes.', 'success');
+                } else {
+                    log('🚨 PROBLÈMES DÉTECTÉS:', 'error');
+                    problems.forEach(problem => log(problem, 'error'));
+                    log('', 'info');
+                    log('💡 Cliquez sur "Corriger automatiquement" pour résoudre ces problèmes.', 'info');
+                }
+
+            } catch (error) {
+                log(`❌ Erreur lors du diagnostic: ${error.message}`, 'error');
+                updateProgress(0, 'Erreur de diagnostic');
+            }
+        }
+
+        async function corrigerAutomatiquement() {
+            if (!diagnosticResults) {
+                log('⚠️ Veuillez d\'abord lancer le diagnostic !', 'warning');
+                return;
+            }
+
+            clearOutput();
+            updateProgress(0, 'Correction en cours...');
+            log('🔧 CORRECTION AUTOMATIQUE', 'info');
+            log('==========================', 'info');
+
+            try {
+                const { waitingSamples, localBacteria, orphanSamples } = diagnosticResults;
+
+                // Étape 1: Identifier le formulaire cible
+                updateProgress(20, 'Identification du formulaire...');
+                log('1️⃣ Identification du formulaire cible...', 'info');
+
+                let targetFormId = null;
+                if (waitingSamples.length > 0) {
+                    targetFormId = waitingSamples[0].form_id;
+                    log(`🎯 Formulaire cible trouvé: ${targetFormId}`, 'success');
+                } else if (orphanSamples.length > 0) {
+                    targetFormId = orphanSamples[0];
+                    log(`🎯 Formulaire orphelin utilisé: ${targetFormId}`, 'success');
+                } else {
+                    throw new Error('Aucun formulaire cible trouvé');
+                }
+
+                // Étape 2: Préparer les bactéries à créer
+                updateProgress(40, 'Préparation des bactéries...');
+                log('2️⃣ Préparation des bactéries...', 'info');
+
+                const bacteriaMapping = {
+                    'entero': { name: 'Entérobactéries', delay: '24h', delayHours: 24 },
+                    'ecoli': { name: 'Escherichia coli', delay: '24h', delayHours: 24 },
+                    'coliformes': { name: 'Coliformes totaux', delay: '48h', delayHours: 48 },
+                    'staphylocoques': { name: 'Staphylocoques', delay: '48h', delayHours: 48 },
+                    'listeria': { name: 'Listeria', delay: '48h', delayHours: 48 },
+                    'levures3j': { name: 'Levures/Moisissures', delay: '72h', delayHours: 72 },
+                    'flores': { name: 'Flore totales', delay: '72h', delayHours: 72 },
+                    'leuconostoc': { name: 'Leuconostoc', delay: '96h', delayHours: 96 },
+                    'levures5j': { name: 'Levures/Moisissures (5j)', delay: '120h', delayHours: 120 }
+                };
+
+                // Utiliser les bactéries du localStorage ou des bactéries par défaut
+                let bacteriaToCreate = localBacteria.length > 0 ? localBacteria : ['entero', 'listeria', 'levures3j'];
+                
+                log(`🦠 Bactéries à créer: ${bacteriaToCreate.join(', ')}`, 'info');
+
+                const calculateReadingDay = (delayHours) => {
+                    const now = new Date();
+                    const readingDate = new Date(now.getTime() + delayHours * 60 * 60 * 1000);
+                    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                    return dayNames[readingDate.getDay()];
+                };
+
+                const bacteriaEntries = bacteriaToCreate.map(bacteriaId => {
+                    const bacteriaInfo = bacteriaMapping[bacteriaId];
+                    if (!bacteriaInfo) {
+                        log(`⚠️ Bactérie inconnue: ${bacteriaId}, utilisation de valeurs par défaut`, 'warning');
+                        return {
+                            form_id: targetFormId,
+                            bacteria_name: bacteriaId,
+                            bacteria_delay: '24h',
+                            reading_day: 'Lundi',
+                            status: 'pending',
+                            created_at: new Date().toISOString(),
+                            modified_at: new Date().toISOString()
+                        };
+                    }
+
+                    const readingDay = calculateReadingDay(bacteriaInfo.delayHours);
+                    const now = new Date().toISOString();
+
+                    return {
+                        form_id: targetFormId,
+                        bacteria_name: bacteriaInfo.name,
+                        bacteria_delay: bacteriaInfo.delay,
+                        reading_day: readingDay,
+                        status: 'pending',
+                        created_at: now,
+                        modified_at: now
+                    };
+                });
+
+                // Étape 3: Supprimer les anciennes bactéries
+                updateProgress(60, 'Nettoyage des anciennes bactéries...');
+                log('3️⃣ Suppression des anciennes bactéries...', 'info');
+
+                const { error: deleteError } = await supabase
+                    .from('form_bacteria_selections')
+                    .delete()
+                    .eq('form_id', targetFormId);
+
+                if (deleteError) {
+                    log(`⚠️ Erreur suppression: ${deleteError.message}`, 'warning');
+                } else {
+                    log('✅ Anciennes bactéries supprimées', 'success');
+                }
+
+                // Étape 4: Créer les nouvelles bactéries
+                updateProgress(80, 'Création des nouvelles bactéries...');
+                log('4️⃣ Création des nouvelles bactéries...', 'info');
+
+                const { data: insertedBacteria, error: insertError } = await supabase
+                    .from('form_bacteria_selections')
+                    .insert(bacteriaEntries)
+                    .select();
+
+                if (insertError) throw insertError;
+
+                log(`✅ ${insertedBacteria.length} bactéries créées avec succès !`, 'success');
+                insertedBacteria.forEach(bacteria => {
+                    log(`   - ${bacteria.bacteria_name} (${bacteria.bacteria_delay}) → ${bacteria.reading_day}`, 'info');
+                });
+
+                // Étape 5: Mettre à jour le statut du formulaire
+                updateProgress(90, 'Mise à jour du statut...');
+                log('5️⃣ Mise à jour du statut du formulaire...', 'info');
+
+                const { error: updateError } = await supabase
+                    .from('samples')
+                    .update({ status: 'waiting_reading' })
+                    .eq('form_id', targetFormId);
+
+                if (updateError) {
+                    log(`⚠️ Erreur mise à jour statut: ${updateError.message}`, 'warning');
+                } else {
+                    log('✅ Statut mis à jour vers "waiting_reading"', 'success');
+                }
+
+                // Étape 6: Synchroniser localStorage
+                updateProgress(100, 'Correction terminée !');
+                log('6️⃣ Synchronisation localStorage...', 'info');
+
+                localStorage.setItem('lotfiv2-bacteria-selection', JSON.stringify(bacteriaToCreate));
+                log('✅ localStorage synchronisé', 'success');
+
+                log('', 'info');
+                log('🎉 CORRECTION TERMINÉE AVEC SUCCÈS !', 'success');
+                log('=====================================', 'success');
+                log('📱 Rechargez les pages "Analyse en cours" et "Lectures en attente"', 'info');
+                log('🔄 Les bactéries devraient maintenant s\'afficher correctement', 'info');
+
+            } catch (error) {
+                log(`❌ Erreur lors de la correction: ${error.message}`, 'error');
+                updateProgress(0, 'Erreur de correction');
+            }
+        }
+
+        async function verifierCorrection() {
+            clearOutput();
+            updateProgress(0, 'Vérification en cours...');
+            log('✅ VÉRIFICATION DE LA CORRECTION', 'info');
+            log('=================================', 'info');
+
+            try {
+                // Vérifier les échantillons waiting_reading
+                updateProgress(33, 'Vérification échantillons...');
+                const { data: waitingSamples, error: samplesError } = await supabase
+                    .from('samples')
+                    .select('*')
+                    .eq('status', 'waiting_reading');
+
+                if (samplesError) throw samplesError;
+
+                // Vérifier les bactéries pending
+                updateProgress(66, 'Vérification bactéries...');
+                const { data: pendingBacteria, error: bacteriaError } = await supabase
+                    .from('form_bacteria_selections')
+                    .select('*')
+                    .in('status', ['pending', 'in_progress']);
+
+                if (bacteriaError) throw bacteriaError;
+
+                // Vérifier localStorage
+                updateProgress(100, 'Vérification terminée');
+                const localSelection = localStorage.getItem('lotfiv2-bacteria-selection');
+                const localBacteria = localSelection ? JSON.parse(localSelection) : [];
+
+                log(`📋 Échantillons 'waiting_reading': ${waitingSamples.length}`, 'info');
+                log(`🦠 Bactéries 'pending/in_progress': ${pendingBacteria.length}`, 'info');
+                log(`💾 Bactéries localStorage: ${localBacteria.length}`, 'info');
+
+                if (waitingSamples.length > 0 && pendingBacteria.length > 0) {
+                    log('✅ CORRECTION RÉUSSIE !', 'success');
+                    log('Les bactéries devraient maintenant s\'afficher dans les deux pages.', 'success');
+                } else {
+                    log('⚠️ La correction n\'est pas complète.', 'warning');
+                    log('Essayez de relancer "Corriger automatiquement".', 'warning');
+                }
+
+            } catch (error) {
+                log(`❌ Erreur lors de la vérification: ${error.message}`, 'error');
+                updateProgress(0, 'Erreur de vérification');
+            }
+        }
+
+        async function reinitialiserTout() {
+            if (!confirm('⚠️ ATTENTION: Cette action va supprimer TOUTES les bactéries et réinitialiser le localStorage. Êtes-vous sûr ?')) {
+                return;
+            }
+
+            clearOutput();
+            updateProgress(0, 'Réinitialisation...');
+            log('🔄 RÉINITIALISATION COMPLÈTE', 'warning');
+            log('============================', 'warning');
+
+            try {
+                // Supprimer toutes les bactéries
+                updateProgress(50, 'Suppression des bactéries...');
+                const { error: deleteError } = await supabase
+                    .from('form_bacteria_selections')
+                    .delete()
+                    .neq('id', '00000000-0000-0000-0000-000000000000'); // Supprimer tout
+
+                if (deleteError) throw deleteError;
+
+                // Vider localStorage
+                updateProgress(75, 'Nettoyage localStorage...');
+                localStorage.removeItem('lotfiv2-bacteria-selection');
+
+                // Remettre les échantillons en draft
+                updateProgress(100, 'Réinitialisation terminée');
+                const { error: updateError } = await supabase
+                    .from('samples')
+                    .update({ status: 'draft' })
+                    .eq('status', 'waiting_reading');
+
+                if (updateError) throw updateError;
+
+                log('✅ Réinitialisation terminée', 'success');
+                log('Toutes les bactéries ont été supprimées', 'info');
+                log('localStorage vidé', 'info');
+                log('Échantillons remis en statut "draft"', 'info');
+
+            } catch (error) {
+                log(`❌ Erreur lors de la réinitialisation: ${error.message}`, 'error');
+                updateProgress(0, 'Erreur de réinitialisation');
+            }
+        }
+
+        // Initialisation
+        window.onload = function() {
+            log('🚀 Script de correction chargé - Prêt à diagnostiquer !', 'success');
+        };
+    </script>
+</body>
+</html> 

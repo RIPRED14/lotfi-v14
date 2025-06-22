@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Diagnostic Complet - Toutes vos Bactéries</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .bacteria-item {
+            background: #f8f9fa;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .bacteria-overdue { border-left-color: #dc3545; background: #fff5f5; }
+        .bacteria-due { border-left-color: #ffc107; background: #fffbf0; }
+        .bacteria-progress { border-left-color: #17a2b8; background: #f0f9ff; }
+        .bacteria-completed { border-left-color: #28a745; background: #f0fff4; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .problems {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Diagnostic Complet de vos Données</h1>
+        <p>Analyse complète de tous vos formulaires et bactéries</p>
+        <button onclick="lancerDiagnostic()">🚀 Lancer le Diagnostic</button>
+        <button onclick="location.reload()">🔄 Actualiser</button>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+        ⏳ Analyse en cours... Veuillez patienter
+    </div>
+
+    <div id="results" style="display: none;">
+        <!-- Les résultats s'afficheront ici -->
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://ekmkjbqafhjkuqhjdslf.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrbWtqYnFhZmhqa3VxaGpkc2xmIiwicm9sZSI6InB1YmxpYyIsImlhdCI6MTczMzg2OTY2MSwiZXhwIjoyMDQ5NDQ1NjYxfQ.xzQQHaM2KPV-21z1MuJOkRm5qn4FQvFjy--R_BwD3zs';
+
+        async function lancerDiagnostic() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            try {
+                console.log('🔍 Début du diagnostic complet...');
+
+                // 1. Récupérer tous les formulaires
+                const samplesResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/samples?select=*&order=created_at.desc`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        }
+                    }
+                );
+
+                if (!samplesResponse.ok) {
+                    throw new Error(`Erreur formulaires: ${samplesResponse.status}`);
+                }
+
+                const samples = await samplesResponse.json();
+
+                // 2. Récupérer toutes les bactéries
+                const bacteriaResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/form_bacteria_selections?select=*&order=created_at.desc`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        }
+                    }
+                );
+
+                if (!bacteriaResponse.ok) {
+                    throw new Error(`Erreur bactéries: ${bacteriaResponse.status}`);
+                }
+
+                const bacteria = await bacteriaResponse.json();
+
+                // 3. Analyser et afficher les résultats
+                afficherResultats(samples, bacteria);
+
+            } catch (error) {
+                console.error('❌ Erreur:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('results').innerHTML = `
+                    <div class="section">
+                        <h2>❌ Erreur de Connexion</h2>
+                        <div class="problems">
+                            <strong>Impossible de se connecter à Supabase:</strong> ${error.message}
+                            <br><br>
+                            <strong>Solutions:</strong>
+                            <ol>
+                                <li>Vérifiez votre connexion Internet</li>
+                                <li>Utilisez l'interface Supabase Dashboard directement</li>
+                                <li>Vérifiez que les clés d'API sont correctes</li>
+                            </ol>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('results').style.display = 'block';
+            }
+        }
+
+        function afficherResultats(samples, bacteria) {
+            console.log(`📊 Données récupérées: ${samples.length} formulaires, ${bacteria.length} bactéries`);
+            
+            // Grouper les données
+            const statusGroups = {};
+            samples.forEach(sample => {
+                const status = sample.status || 'undefined';
+                if (!statusGroups[status]) statusGroups[status] = [];
+                statusGroups[status].push(sample);
+            });
+
+            const bacteriaStatusGroups = {};
+            bacteria.forEach(b => {
+                const status = b.status || 'undefined';
+                if (!bacteriaStatusGroups[status]) bacteriaStatusGroups[status] = [];
+                bacteriaStatusGroups[status].push(b);
+            });
+
+            const bacteriaByForm = {};
+            bacteria.forEach(b => {
+                const formId = b.form_id;
+                if (!bacteriaByForm[formId]) bacteriaByForm[formId] = [];
+                bacteriaByForm[formId].push(b);
+            });
+
+            const waitingForms = samples.filter(s => s.status === 'waiting_reading');
+            
+            // Détecter les problèmes
+            const formsWithoutBacteria = samples.filter(s => !bacteriaByForm[s.form_id]);
+            const bacteriaWithoutDate = bacteria.filter(b => !b.reading_date);
+            const waitingWithoutBacteria = waitingForms.filter(f => !bacteriaByForm[f.form_id] || bacteriaByForm[f.form_id].length === 0);
+
+            // Générer le HTML
+            let html = `
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number">${samples.length}</div>
+                        <div>Formulaires Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${bacteria.length}</div>
+                        <div>Bactéries Total</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${waitingForms.length}</div>
+                        <div>En Attente de Lecture</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${Object.keys(bacteriaByForm).length}</div>
+                        <div>Formulaires avec Bactéries</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>📊 Répartition des Formulaires par Statut</h2>
+                    ${Object.keys(statusGroups).map(status => 
+                        `<div class="bacteria-item">
+                            <strong>${status}:</strong> ${statusGroups[status].length} formulaires
+                        </div>`
+                    ).join('')}
+                </div>
+
+                <div class="section">
+                    <h2>🦠 Répartition des Bactéries par Statut</h2>
+                    ${Object.keys(bacteriaStatusGroups).map(status => 
+                        `<div class="bacteria-item">
+                            <strong>${status}:</strong> ${bacteriaStatusGroups[status].length} bactéries
+                        </div>`
+                    ).join('')}
+                </div>
+
+                <div class="section">
+                    <h2>⏳ Formulaires en Attente de Lecture (${waitingForms.length})</h2>
+                    ${waitingForms.length === 0 ? 
+                        '<div class="problems"><strong>⚠️ Aucun formulaire en attente de lecture !</strong><br>Vérifiez les statuts de vos formulaires.</div>' :
+                        waitingForms.map(form => {
+                            const formBacteria = bacteriaByForm[form.form_id] || [];
+                            return `
+                                <div class="bacteria-item">
+                                    <strong>📋 ${form.form_id}</strong><br>
+                                    📝 ${form.report_title || 'Pas de titre'}<br>
+                                    🏢 ${form.brand || 'Pas de marque'}<br>
+                                    🦠 <strong>${formBacteria.length} bactéries</strong>
+                                    ${formBacteria.map(b => {
+                                        const today = new Date();
+                                        const readingDate = new Date(b.reading_date);
+                                        const isOverdue = readingDate < today;
+                                        const isDueToday = readingDate.toDateString() === today.toDateString();
+                                        
+                                        let className = 'bacteria-item';
+                                        let urgency = '⚪';
+                                        if (isOverdue) { className = 'bacteria-overdue'; urgency = '🔴'; }
+                                        else if (isDueToday) { className = 'bacteria-due'; urgency = '🟡'; }
+                                        else if (b.status === 'in_progress') { className = 'bacteria-progress'; urgency = '🔵'; }
+                                        else if (b.status === 'completed') { className = 'bacteria-completed'; urgency = '🟢'; }
+                                        
+                                        return `<div style="margin-left: 20px; margin-top: 5px;">
+                                                  ${urgency} ${b.bacteria_name} (${b.status}) - ${b.reading_date || 'pas de date'}
+                                                </div>`;
+                                    }).join('')}
+                                </div>
+                            `;
+                        }).join('')
+                    }
+                </div>
+
+                <div class="section">
+                    <h2>🔍 Toutes les Bactéries (${bacteria.length})</h2>
+                    ${bacteria.length === 0 ? 
+                        '<div class="problems"><strong>⚠️ Aucune bactérie trouvée !</strong><br>Il faut créer des sélections de bactéries pour vos formulaires.</div>' :
+                        Object.keys(bacteriaByForm).slice(0, 20).map(formId => {
+                            const formBacteria = bacteriaByForm[formId];
+                            return `
+                                <div class="bacteria-item">
+                                    <strong>📋 ${formId}</strong> (${formBacteria.length} bactéries)
+                                    ${formBacteria.map(b => `
+                                        <div style="margin-left: 20px; margin-top: 5px;">
+                                            🦠 ${b.bacteria_name} - ${b.status} - ${b.reading_date || 'pas de date'}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                        }).join('') + 
+                        (Object.keys(bacteriaByForm).length > 20 ? `<div class="bacteria-item"><strong>... et ${Object.keys(bacteriaByForm).length - 20} autres formulaires</strong></div>` : '')
+                    }
+                </div>
+
+                <div class="section">
+                    <h2>⚠️ Problèmes Détectés</h2>
+                    ${formsWithoutBacteria.length === 0 && bacteriaWithoutDate.length === 0 && waitingWithoutBacteria.length === 0 ?
+                        '<div class="success"><strong>✅ Aucun problème majeur détecté !</strong></div>' :
+                        `
+                        ${formsWithoutBacteria.length > 0 ? `<div class="problems">❌ <strong>${formsWithoutBacteria.length} formulaires sans bactéries</strong></div>` : ''}
+                        ${bacteriaWithoutDate.length > 0 ? `<div class="problems">❌ <strong>${bacteriaWithoutDate.length} bactéries sans date de lecture</strong></div>` : ''}
+                        ${waitingWithoutBacteria.length > 0 ? `<div class="problems">❌ <strong>${waitingWithoutBacteria.length} formulaires "waiting_reading" sans bactéries</strong></div>` : ''}
+                        `
+                    }
+                </div>
+
+                <div class="section">
+                    <h2>💡 Recommandations</h2>
+                    <div class="bacteria-item">
+                        ${waitingForms.length === 0 ? '🔄 <strong>Aucun formulaire en attente</strong> → Vérifiez les statuts de vos formulaires<br>' : ''}
+                        ${bacteria.length === 0 ? '🧬 <strong>Aucune bactérie trouvée</strong> → Il faut créer des sélections de bactéries<br>' : ''}
+                        ${bacteria.length < samples.length * 2 ? '🦠 <strong>Peu de bactéries par rapport aux formulaires</strong> → Vérifiez les sélections<br>' : ''}
+                        ${bacteria.length > 0 && waitingForms.length > 0 ? '✅ <strong>Configuration normale détectée</strong> → L\'application devrait fonctionner' : ''}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').innerHTML = html;
+            document.getElementById('results').style.display = 'block';
+        }
+
+        // Lancer automatiquement au chargement
+        window.onload = function() {
+            setTimeout(lancerDiagnostic, 1000);
+        };
+    </script>
+</body>
+</html> 

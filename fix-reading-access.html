@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔧 Correction - Accès Lectures en Attente</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            text-align: center;
+            color: #2563eb;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            background-color: #f8fafc;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #1e40af;
+        }
+        .btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background-color: #2563eb;
+        }
+        .btn-danger {
+            background-color: #dc2626;
+        }
+        .btn-danger:hover {
+            background-color: #b91c1c;
+        }
+        .btn-success {
+            background-color: #16a34a;
+        }
+        .btn-success:hover {
+            background-color: #15803d;
+        }
+        .btn-warning {
+            background-color: #f59e0b;
+        }
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f1f5f9;
+            border-left: 4px solid #64748b;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background-color: #f0fdf4;
+            border-left-color: #16a34a;
+            color: #166534;
+        }
+        .error {
+            background-color: #fef2f2;
+            border-left-color: #dc2626;
+            color: #991b1b;
+        }
+        .warning {
+            background-color: #fffbeb;
+            border-left-color: #f59e0b;
+            color: #92400e;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.online {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+        .status.offline {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 768px) {
+            .grid, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+        .force-access-section {
+            border-left-color: #f59e0b;
+            background-color: #fffbeb;
+        }
+        .force-access-section h3 {
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Diagnostic et Correction</h1>
+            <p>Résolution du problème d'accès aux formulaires depuis "Lectures en Attente"</p>
+            <div id="connectionStatus">
+                <span>Connexion Supabase: </span>
+                <span id="statusIndicator" class="status offline">Vérification...</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="section">
+                <h3>🔍 1. Diagnostic</h3>
+                <p>Identifier les problèmes dans la navigation lectures → formulaire</p>
+                <button class="btn" onclick="runDiagnostic()">Lancer le diagnostic</button>
+                <div id="diagnosticResult" class="result" style="display: none;"></div>
+            </div>
+
+            <div class="section">
+                <h3>📋 2. Données de test</h3>
+                <p>Créer des données de test pour vérifier le fonctionnement</p>
+                <button class="btn btn-success" onclick="createTestData()">Créer données de test</button>
+                <div id="testDataResult" class="result" style="display: none;"></div>
+            </div>
+
+            <div class="section">
+                <h3>🔗 3. Test navigation</h3>
+                <p>Tester la navigation depuis lectures en attente vers formulaire</p>
+                <button class="btn" onclick="testNavigation()">Tester navigation</button>
+                <div id="navigationResult" class="result" style="display: none;"></div>
+            </div>
+
+            <div class="section">
+                <h3>🧹 4. Nettoyage</h3>
+                <p>Nettoyer les données corrompues si nécessaire</p>
+                <button class="btn btn-danger" onclick="cleanDatabase()">Nettoyer base</button>
+                <div id="cleanResult" class="result" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="section force-access-section">
+            <h3>⚡ 5. Forcer l'accès (ignorer les dates)</h3>
+            <p>Permettre l'accès aux formulaires même si ce n'est pas la bonne date de lecture</p>
+            <div class="grid-3">
+                <button class="btn btn-warning" onclick="enableForceAccess()">Activer accès forcé</button>
+                <button class="btn" onclick="checkCurrentAccess()">Vérifier accès actuel</button>
+                <button class="btn btn-danger" onclick="disableForceAccess()">Désactiver accès forcé</button>
+            </div>
+            <div id="forceAccessResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h3>📝 6. Rapport complet</h3>
+            <p>Générer un rapport détaillé des problèmes et solutions</p>
+            <button class="btn" onclick="generateReport()">Générer rapport</button>
+            <div id="reportResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+        // Configuration Supabase
+        const supabaseUrl = 'https://ekmkjbqafhjkuqhjdslf.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrbWtqYnFhZmhqa3VxaGpkc2xmIiwicm9sZSI6InB1YmxpYyIsImlhdCI6MTczMzg2OTY2MSwiZXhwIjoyMDQ5NDQ1NjYxfQ.xzQQHaM2KPV-21z1MuJOkRm5qn4FQvFjy--R_BwD3zs';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // Variables globales
+        window.supabase = supabase;
+        window.testData = {};
+
+        // Vérifier la connexion au chargement
+        window.addEventListener('load', checkConnection);
+
+        // Fonction pour vérifier la connexion
+        async function checkConnection() {
+            try {
+                const { data, error } = await supabase.from('samples').select('count').limit(1);
+                const statusElement = document.getElementById('statusIndicator');
+                
+                if (error) {
+                    statusElement.textContent = 'Hors ligne';
+                    statusElement.className = 'status offline';
+                } else {
+                    statusElement.textContent = 'En ligne';
+                    statusElement.className = 'status online';
+                }
+            } catch (error) {
+                const statusElement = document.getElementById('statusIndicator');
+                statusElement.textContent = 'Erreur';
+                statusElement.className = 'status offline';
+            }
+        }
+
+        // 1. Fonction de diagnostic
+        window.runDiagnostic = async function() {
+            const resultDiv = document.getElementById('diagnosticResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🔍 Diagnostic en cours...\n';
+
+            try {
+                let report = '=== DIAGNOSTIC LECTURES EN ATTENTE ===\n\n';
+
+                // 1. Vérifier les échantillons en attente de lecture
+                report += '📊 1. ÉCHANTILLONS EN ATTENTE:\n';
+                const { data: waitingSamples, error: waitingError } = await supabase
+                    .from('samples')
+                    .select('form_id, report_title, brand, site, status, created_at')
+                    .eq('status', 'waiting_reading');
+
+                if (waitingError) {
+                    report += `❌ Erreur: ${waitingError.message}\n`;
+                } else {
+                    report += `✅ ${waitingSamples.length} échantillons trouvés\n`;
+                    waitingSamples.forEach((sample, i) => {
+                        report += `   ${i+1}. Form: ${sample.form_id} | Titre: ${sample.report_title}\n`;
+                    });
+                }
+
+                // 2. Vérifier les bactéries associées
+                report += '\n🦠 2. BACTÉRIES ASSOCIÉES:\n';
+                const { data: bacteria, error: bacteriaError } = await supabase
+                    .from('form_bacteria_selections')
+                    .select('*')
+                    .in('status', ['pending', 'in_progress']);
+
+                if (bacteriaError) {
+                    report += `❌ Erreur: ${bacteriaError.message}\n`;
+                } else {
+                    report += `✅ ${bacteria.length} bactéries trouvées\n`;
+                    bacteria.forEach((b, i) => {
+                        report += `   ${i+1}. ${b.bacteria_name} (${b.form_id}) - ${b.status}\n`;
+                        
+                        // Vérifier si la date est dans le futur (cause du blocage)
+                        const createdDate = new Date(b.created_at);
+                        const now = new Date();
+                        const delayHours = parseInt(b.bacteria_delay.replace(/[^\d]/g, '')) || 24;
+                        const readingDate = new Date(createdDate.getTime() + delayHours * 60 * 60 * 1000);
+                        
+                        if (readingDate > now) {
+                            const hoursLeft = Math.ceil((readingDate - now) / (1000 * 60 * 60));
+                            report += `      ⚠️  Accès bloqué: encore ${hoursLeft}h avant lecture\n`;
+                        }
+                    });
+                }
+
+                // 3. Vérifier les correspondances
+                report += '\n🔗 3. CORRESPONDANCES:\n';
+                if (waitingSamples && bacteria) {
+                    const sampleFormIds = waitingSamples.map(s => s.form_id);
+                    const bacteriaFormIds = bacteria.map(b => b.form_id);
+                    const matches = sampleFormIds.filter(id => bacteriaFormIds.includes(id));
+                    
+                    report += `✅ ${matches.length} correspondances trouvées\n`;
+                    matches.forEach(id => report += `   - ${id}\n`);
+                    
+                    const orphanSamples = sampleFormIds.filter(id => !bacteriaFormIds.includes(id));
+                    const orphanBacteria = bacteriaFormIds.filter(id => !sampleFormIds.includes(id));
+                    
+                    if (orphanSamples.length > 0) {
+                        report += `⚠️  ${orphanSamples.length} échantillons sans bactéries:\n`;
+                        orphanSamples.forEach(id => report += `   - ${id}\n`);
+                    }
+                    
+                    if (orphanBacteria.length > 0) {
+                        report += `⚠️  ${orphanBacteria.length} bactéries sans échantillons:\n`;
+                        orphanBacteria.forEach(id => report += `   - ${id}\n`);
+                    }
+                }
+
+                // 4. Problèmes identifiés
+                report += '\n🚨 4. PROBLÈMES IDENTIFIÉS:\n';
+                const problems = [];
+                
+                if (!waitingSamples || waitingSamples.length === 0) {
+                    problems.push('Aucun échantillon en attente de lecture');
+                }
+                if (!bacteria || bacteria.length === 0) {
+                    problems.push('Aucune bactérie en attente');
+                }
+                if (waitingSamples && bacteria) {
+                    const sampleFormIds = waitingSamples.map(s => s.form_id);
+                    const bacteriaFormIds = bacteria.map(b => b.form_id);
+                    const orphanSamples = sampleFormIds.filter(id => !bacteriaFormIds.includes(id));
+                    const orphanBacteria = bacteriaFormIds.filter(id => !sampleFormIds.includes(id));
+                    
+                    if (orphanSamples.length > 0) {
+                        problems.push(`${orphanSamples.length} échantillons orphelins`);
+                    }
+                    if (orphanBacteria.length > 0) {
+                        problems.push(`${orphanBacteria.length} bactéries orphelines`);
+                    }
+
+                    // Vérifier les blocages de date
+                    const blockedBacteria = bacteria.filter(b => {
+                        const createdDate = new Date(b.created_at);
+                        const now = new Date();
+                        const delayHours = parseInt(b.bacteria_delay.replace(/[^\d]/g, '')) || 24;
+                        const readingDate = new Date(createdDate.getTime() + delayHours * 60 * 60 * 1000);
+                        return readingDate > now;
+                    });
+                    
+                    if (blockedBacteria.length > 0) {
+                        problems.push(`${blockedBacteria.length} bactéries bloquées par contrainte de date`);
+                    }
+                }
+
+                if (problems.length === 0) {
+                    report += '✅ Aucun problème détecté\n';
+                } else {
+                    problems.forEach(problem => report += `❌ ${problem}\n`);
+                }
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+                // Stocker les données pour les autres fonctions
+                window.testData.waitingSamples = waitingSamples;
+                window.testData.bacteria = bacteria;
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors du diagnostic: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 2. Fonction pour créer des données de test
+        window.createTestData = async function() {
+            const resultDiv = document.getElementById('testDataResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🧪 Création des données de test...\n';
+
+            try {
+                let report = '=== CRÉATION DONNÉES DE TEST ===\n\n';
+
+                // Créer un formulaire de test avec échantillons
+                const testFormId = `TEST-FORM-${Date.now()}`;
+                const testReportTitle = `Test Lecture - ${new Date().toLocaleString('fr-FR')}`;
+
+                report += `📋 Création du formulaire: ${testFormId}\n`;
+
+                // 1. Créer des échantillons de test
+                const testSamples = [];
+                for (let i = 1; i <= 3; i++) {
+                    testSamples.push({
+                        number: i.toString().padStart(2, '0'),
+                        product: 'Yaourt Test',
+                        form_id: testFormId,
+                        report_title: testReportTitle,
+                        status: 'waiting_reading',
+                        brand: 'Test Brand',
+                        site: 'Test Site',
+                        fabrication: new Date().toISOString().split('T')[0],
+                        dlc: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                        smell: 'C',
+                        texture: 'C',
+                        taste: 'C',
+                        aspect: 'C',
+                        created_at: new Date().toISOString(),
+                        modified_at: new Date().toISOString()
+                    });
+                }
+
+                const { data: samplesInserted, error: samplesError } = await supabase
+                    .from('samples')
+                    .insert(testSamples)
+                    .select();
+
+                if (samplesError) {
+                    throw new Error(`Erreur échantillons: ${samplesError.message}`);
+                }
+
+                report += `✅ ${samplesInserted.length} échantillons créés\n`;
+
+                // 2. Créer des bactéries de test (une accessible maintenant, une dans le futur)
+                const now = new Date();
+                const pastDate = new Date(now.getTime() - 25 * 60 * 60 * 1000); // Il y a 25h
+                const recentDate = new Date(now.getTime() - 1 * 60 * 60 * 1000); // Il y a 1h
+
+                const testBacteria = [
+                    {
+                        form_id: testFormId,
+                        bacteria_name: 'E. coli',
+                        bacteria_delay: '24h',
+                        reading_day: 'Lundi',
+                        status: 'pending',
+                        created_at: pastDate.toISOString(), // Créé il y a 25h = accessible maintenant
+                        modified_at: pastDate.toISOString()
+                    },
+                    {
+                        form_id: testFormId,
+                        bacteria_name: 'Listeria',
+                        bacteria_delay: '48h',
+                        reading_day: 'Mardi',
+                        status: 'pending',
+                        created_at: recentDate.toISOString(), // Créé il y a 1h = pas encore accessible
+                        modified_at: recentDate.toISOString()
+                    }
+                ];
+
+                const { data: bacteriaInserted, error: bacteriaError } = await supabase
+                    .from('form_bacteria_selections')
+                    .insert(testBacteria)
+                    .select();
+
+                if (bacteriaError) {
+                    throw new Error(`Erreur bactéries: ${bacteriaError.message}`);
+                }
+
+                report += `✅ ${bacteriaInserted.length} bactéries créées\n`;
+
+                report += `\n🎯 DONNÉES DE TEST CRÉÉES:\n`;
+                report += `Form ID: ${testFormId}\n`;
+                report += `Titre: ${testReportTitle}\n`;
+                report += `Échantillons: ${samplesInserted.length}\n`;
+                report += `Bactéries: ${bacteriaInserted.length}\n`;
+                report += `\n📅 STATUT D'ACCÈS:\n`;
+                report += `- E. coli: ✅ Accessible (créé il y a 25h)\n`;
+                report += `- Listeria: ❌ Bloqué jusqu'à demain (créé il y a 1h)\n`;
+
+                // Stocker les données de test
+                window.testData.testFormId = testFormId;
+                window.testData.testSamples = samplesInserted;
+                window.testData.testBacteria = bacteriaInserted;
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors de la création: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 3. Fonction pour tester la navigation
+        window.testNavigation = async function() {
+            const resultDiv = document.getElementById('navigationResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🔗 Test de navigation en cours...\n';
+
+            try {
+                let report = '=== TEST DE NAVIGATION ===\n\n';
+
+                // Vérifier si on a des données de test
+                if (!window.testData.testBacteria || window.testData.testBacteria.length === 0) {
+                    report += '⚠️  Aucune donnée de test. Créez d\'abord des données de test.\n';
+                    resultDiv.textContent = report;
+                    resultDiv.className = 'result error';
+                    return;
+                }
+
+                // Simuler la sélection d'une bactérie
+                const testBacteria = window.testData.testBacteria[0];
+                report += `🦠 Test avec: ${testBacteria.bacteria_name}\n`;
+                report += `Form ID: ${testBacteria.form_id}\n`;
+
+                // 1. Marquer la bactérie comme "in_progress"
+                const { error: updateError } = await supabase
+                    .from('form_bacteria_selections')
+                    .update({
+                        status: 'in_progress',
+                        modified_at: new Date().toISOString()
+                    })
+                    .eq('id', testBacteria.id);
+
+                if (updateError) {
+                    report += `❌ Erreur mise à jour: ${updateError.message}\n`;
+                } else {
+                    report += `✅ Bactérie marquée comme "in_progress"\n`;
+                }
+
+                // 2. Vérifier que les échantillons existent
+                const { data: formSamples, error: samplesError } = await supabase
+                    .from('samples')
+                    .select('*')
+                    .eq('form_id', testBacteria.form_id);
+
+                if (samplesError) {
+                    report += `❌ Erreur échantillons: ${samplesError.message}\n`;
+                } else {
+                    report += `✅ ${formSamples.length} échantillons trouvés pour ce formulaire\n`;
+                }
+
+                // 3. Simuler la navigation
+                const navigationState = {
+                    formId: testBacteria.form_id,
+                    bacterie: testBacteria.bacteria_name,
+                    comingFromReadingPage: true,
+                    reportTitle: `Lecture de ${testBacteria.bacteria_name}`,
+                    delai: testBacteria.bacteria_delay,
+                    jour: testBacteria.reading_day,
+                    forceAccess: true // Nouveau paramètre pour forcer l'accès
+                };
+
+                report += `\n🚀 PARAMÈTRES DE NAVIGATION:\n`;
+                Object.entries(navigationState).forEach(([key, value]) => {
+                    report += `   ${key}: ${value}\n`;
+                });
+
+                // 4. Tester l'URL de navigation
+                const testUrl = new URL('/sample-entry', window.location.origin);
+                report += `\n📍 URL de destination: ${testUrl.href}\n`;
+
+                // 5. Créer un lien de test
+                report += `\n🔗 LIEN DE TEST GÉNÉRÉ:\n`;
+                const testLink = `${window.location.origin}/sample-entry?formId=${testBacteria.form_id}&bacterie=${encodeURIComponent(testBacteria.bacteria_name)}&delai=${testBacteria.bacteria_delay}&jour=${encodeURIComponent(testBacteria.reading_day)}&forceAccess=true`;
+                report += `${testLink}\n`;
+
+                report += `\n✅ Test de navigation terminé avec succès!\n`;
+                report += `💡 Vous pouvez maintenant tester en accédant à: http://localhost:3000/lectures-en-attente\n`;
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors du test: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 4. Fonction de nettoyage
+        window.cleanDatabase = async function() {
+            const resultDiv = document.getElementById('cleanResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🧹 Nettoyage en cours...\n';
+
+            try {
+                let report = '=== NETTOYAGE BASE DE DONNÉES ===\n\n';
+
+                // 1. Supprimer les données de test
+                const { error: testSamplesError } = await supabase
+                    .from('samples')
+                    .delete()
+                    .like('form_id', 'TEST-FORM-%');
+
+                const { error: testBacteriaError } = await supabase
+                    .from('form_bacteria_selections')
+                    .delete()
+                    .like('form_id', 'TEST-FORM-%');
+
+                if (testSamplesError || testBacteriaError) {
+                    report += `⚠️  Erreur partielle lors du nettoyage\n`;
+                } else {
+                    report += `✅ Données de test supprimées\n`;
+                }
+
+                // 2. Nettoyer les bactéries orphelines
+                report += `\n🧹 Nettoyage des bactéries orphelines...\n`;
+                
+                // Récupérer tous les form_ids des échantillons
+                const { data: allSamples } = await supabase
+                    .from('samples')
+                    .select('form_id');
+
+                const sampleFormIds = allSamples ? [...new Set(allSamples.map(s => s.form_id))] : [];
+
+                // Supprimer les bactéries qui n'ont pas d'échantillons correspondants
+                if (sampleFormIds.length > 0) {
+                    const { error: orphanError } = await supabase
+                        .from('form_bacteria_selections')
+                        .delete()
+                        .not('form_id', 'in', `(${sampleFormIds.map(id => `'${id}'`).join(',')})`);
+
+                    if (orphanError) {
+                        report += `⚠️  Erreur nettoyage orphelines: ${orphanError.message}\n`;
+                    } else {
+                        report += `✅ Bactéries orphelines supprimées\n`;
+                    }
+                } else {
+                    report += `✅ Pas de bactéries orphelines à nettoyer\n`;
+                }
+
+                report += `\n✅ Nettoyage terminé!\n`;
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors du nettoyage: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 5. Fonction pour activer l'accès forcé
+        window.enableForceAccess = async function() {
+            const resultDiv = document.getElementById('forceAccessResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result warning';
+            resultDiv.textContent = '⚡ Activation de l\'accès forcé...\n';
+
+            try {
+                let report = '=== ACTIVATION ACCÈS FORCÉ ===\n\n';
+
+                // Mettre à jour toutes les bactéries pour qu'elles soient accessibles
+                const { data: allBacteria, error: fetchError } = await supabase
+                    .from('form_bacteria_selections')
+                    .select('*')
+                    .in('status', ['pending', 'in_progress']);
+
+                if (fetchError) {
+                    throw new Error(`Erreur lors de la récupération: ${fetchError.message}`);
+                }
+
+                report += `📊 ${allBacteria.length} bactéries trouvées\n\n`;
+
+                if (allBacteria.length > 0) {
+                    // Forcer toutes les bactéries à être "prêtes" en modifiant leur date de création
+                    const pastDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // Il y a 7 jours
+
+                    for (const bacteria of allBacteria) {
+                        const { error: updateError } = await supabase
+                            .from('form_bacteria_selections')
+                            .update({
+                                created_at: pastDate.toISOString(),
+                                modified_at: new Date().toISOString()
+                            })
+                            .eq('id', bacteria.id);
+
+                        if (updateError) {
+                            report += `❌ Erreur pour ${bacteria.bacteria_name}: ${updateError.message}\n`;
+                        } else {
+                            report += `✅ ${bacteria.bacteria_name} (${bacteria.form_id}) → Accès forcé activé\n`;
+                        }
+                    }
+                } else {
+                    report += '⚠️  Aucune bactérie trouvée à débloquer\n';
+                }
+
+                report += `\n⚡ ACCÈS FORCÉ ACTIVÉ!\n`;
+                report += `🎯 Toutes les bactéries sont maintenant accessibles indépendamment de leur date\n`;
+                report += `💡 Allez sur http://localhost:3000/lectures-en-attente pour tester\n`;
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors de l'activation: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 6. Fonction pour vérifier l'accès actuel
+        window.checkCurrentAccess = async function() {
+            const resultDiv = document.getElementById('forceAccessResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🔍 Vérification de l\'accès...\n';
+
+            try {
+                let report = '=== ÉTAT ACTUEL DES ACCÈS ===\n\n';
+
+                const { data: bacteria, error } = await supabase
+                    .from('form_bacteria_selections')
+                    .select('*')
+                    .in('status', ['pending', 'in_progress']);
+
+                if (error) {
+                    throw new Error(`Erreur: ${error.message}`);
+                }
+
+                report += `📊 ${bacteria.length} bactéries en attente\n\n`;
+
+                const now = new Date();
+                let accessibleCount = 0;
+                let blockedCount = 0;
+
+                bacteria.forEach((b, i) => {
+                    const createdDate = new Date(b.created_at);
+                    const delayHours = parseInt(b.bacteria_delay.replace(/[^\d]/g, '')) || 24;
+                    const readingDate = new Date(createdDate.getTime() + delayHours * 60 * 60 * 1000);
+                    
+                    const isAccessible = readingDate <= now;
+                    const hoursLeft = isAccessible ? 0 : Math.ceil((readingDate - now) / (1000 * 60 * 60));
+                    
+                    report += `${i+1}. ${b.bacteria_name} (${b.form_id})\n`;
+                    report += `   Créé: ${new Date(b.created_at).toLocaleString('fr-FR')}\n`;
+                    report += `   Statut: ${isAccessible ? '✅ Accessible' : `❌ Bloqué (${hoursLeft}h restantes)`}\n\n`;
+                    
+                    if (isAccessible) {
+                        accessibleCount++;
+                    } else {
+                        blockedCount++;
+                    }
+                });
+
+                report += `📈 RÉSUMÉ:\n`;
+                report += `✅ Accessibles: ${accessibleCount}\n`;
+                report += `❌ Bloquées: ${blockedCount}\n`;
+
+                if (blockedCount > 0) {
+                    report += `\n💡 TIP: Utilisez "Activer accès forcé" pour débloquer toutes les bactéries\n`;
+                }
+
+                resultDiv.textContent = report;
+                resultDiv.className = blockedCount > 0 ? 'result warning' : 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors de la vérification: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 7. Fonction pour désactiver l'accès forcé
+        window.disableForceAccess = async function() {
+            const resultDiv = document.getElementById('forceAccessResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🔒 Désactivation de l\'accès forcé...\n';
+
+            try {
+                let report = '=== DÉSACTIVATION ACCÈS FORCÉ ===\n\n';
+
+                // Remettre les bactéries à leur date de création normale
+                const { data: allBacteria, error: fetchError } = await supabase
+                    .from('form_bacteria_selections')
+                    .select('*')
+                    .in('status', ['pending', 'in_progress']);
+
+                if (fetchError) {
+                    throw new Error(`Erreur: ${fetchError.message}`);
+                }
+
+                if (allBacteria.length > 0) {
+                    for (const bacteria of allBacteria) {
+                        // Remettre la date de création à maintenant (pour respecter les délais normaux)
+                        const { error: updateError } = await supabase
+                            .from('form_bacteria_selections')
+                            .update({
+                                created_at: new Date().toISOString(),
+                                modified_at: new Date().toISOString()
+                            })
+                            .eq('id', bacteria.id);
+
+                        if (updateError) {
+                            report += `❌ Erreur pour ${bacteria.bacteria_name}: ${updateError.message}\n`;
+                        } else {
+                            report += `✅ ${bacteria.bacteria_name} → Délais normaux restaurés\n`;
+                        }
+                    }
+                } else {
+                    report += '⚠️  Aucune bactérie trouvée\n';
+                }
+
+                report += `\n🔒 ACCÈS FORCÉ DÉSACTIVÉ!\n`;
+                report += `⏰ Les bactéries respectent maintenant leurs délais normaux\n`;
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors de la désactivation: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+
+        // 8. Fonction pour générer le rapport (mise à jour)
+        window.generateReport = async function() {
+            const resultDiv = document.getElementById('reportResult');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = '📝 Génération du rapport...\n';
+
+            try {
+                let report = '=== RAPPORT COMPLET - LECTURES EN ATTENTE ===\n\n';
+
+                // Date du rapport
+                report += `📅 Généré le: ${new Date().toLocaleString('fr-FR')}\n\n`;
+
+                // État actuel de la base
+                report += '📊 ÉTAT ACTUEL DE LA BASE:\n';
+                
+                const { data: allSamples } = await supabase.from('samples').select('status');
+                const { data: allBacteria } = await supabase.from('form_bacteria_selections').select('status, created_at, bacteria_delay');
+
+                if (allSamples) {
+                    const statusCount = allSamples.reduce((acc, sample) => {
+                        acc[sample.status] = (acc[sample.status] || 0) + 1;
+                        return acc;
+                    }, {});
+                    
+                    report += '   Échantillons par statut:\n';
+                    Object.entries(statusCount).forEach(([status, count]) => {
+                        report += `   - ${status}: ${count}\n`;
+                    });
+                }
+
+                if (allBacteria) {
+                    const bacteriaStatusCount = allBacteria.reduce((acc, bacteria) => {
+                        acc[bacteria.status] = (acc[bacteria.status] || 0) + 1;
+                        return acc;
+                    }, {});
+                    
+                    report += '   Bactéries par statut:\n';
+                    Object.entries(bacteriaStatusCount).forEach(([status, count]) => {
+                        report += `   - ${status}: ${count}\n`;
+                    });
+
+                    // Analyser les accès bloqués
+                    const now = new Date();
+                    let blockedCount = 0;
+                    allBacteria.forEach(b => {
+                        if (b.status === 'pending') {
+                            const createdDate = new Date(b.created_at);
+                            const delayHours = parseInt(b.bacteria_delay?.replace(/[^\d]/g, '') || '24');
+                            const readingDate = new Date(createdDate.getTime() + delayHours * 60 * 60 * 1000);
+                            if (readingDate > now) {
+                                blockedCount++;
+                            }
+                        }
+                    });
+                    
+                    if (blockedCount > 0) {
+                        report += `   ⚠️  Bactéries bloquées par date: ${blockedCount}\n`;
+                    }
+                }
+
+                // Problèmes identifiés et solutions
+                report += '\n🔧 PROBLÈMES ET SOLUTIONS:\n\n';
+                
+                report += '1. PROBLÈME: Impossible d\'accéder aux formulaires depuis "Lectures en attente"\n';
+                report += '   CAUSE: Échantillons sans bactéries associées ou vice versa\n';
+                report += '   SOLUTION: Créer des données cohérentes avec ce script\n\n';
+
+                report += '2. PROBLÈME: Navigation React qui ne fonctionne pas\n';
+                report += '   CAUSE: État localStorage supprimé mais logique de navigation non adaptée\n';
+                report += '   SOLUTION: Utiliser uniquement les paramètres React Router state\n\n';
+
+                report += '3. PROBLÈME: Chargement des échantillons qui échoue\n';
+                report += '   CAUSE: loadSamplesByFormId ne trouve pas les échantillons\n';
+                report += '   SOLUTION: Vérifier que form_id correspond entre samples et bacteria\n\n';
+
+                report += '4. PROBLÈME: Accès bloqué par contrainte de date\n';
+                report += '   CAUSE: Les bactéries ne sont accessibles qu\'après leur délai (24h, 48h, etc.)\n';
+                report += '   SOLUTION: Utiliser la fonction "Forcer l\'accès" pour ignorer les délais\n\n';
+
+                // Recommandations
+                report += '💡 RECOMMANDATIONS:\n\n';
+                report += '✅ 1. Toujours créer des échantillons ET des bactéries avec le même form_id\n';
+                report += '✅ 2. Utiliser le script de création de données de test avant de tester\n';
+                report += '✅ 3. Vérifier la cohérence des données avec le diagnostic\n';
+                report += '✅ 4. Tester la navigation après chaque modification\n';
+                report += '✅ 5. Utiliser "Forcer l\'accès" pour tester sans attendre les délais\n\n';
+
+                // Instructions d'utilisation
+                report += '🚀 INSTRUCTIONS D\'UTILISATION:\n\n';
+                report += '1. Cliquez sur "Lancer le diagnostic" pour identifier les problèmes\n';
+                report += '2. Cliquez sur "Créer données de test" pour avoir des données cohérentes\n';
+                report += '3. Cliquez sur "Activer accès forcé" pour ignorer les contraintes de date\n';
+                report += '4. Cliquez sur "Tester navigation" pour vérifier le fonctionnement\n';
+                report += '5. Accédez à http://localhost:3000/lectures-en-attente pour tester\n';
+                report += '6. Utilisez "Nettoyer base" pour supprimer les données de test\n';
+                report += '7. Utilisez "Désactiver accès forcé" pour remettre les délais normaux\n\n';
+
+                report += '✅ RAPPORT TERMINÉ\n';
+
+                resultDiv.textContent = report;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.textContent = `❌ Erreur lors de la génération: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        };
+    </script>
+</body>
+</html> 
